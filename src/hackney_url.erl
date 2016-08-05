@@ -291,25 +291,25 @@ urlencode(Bin) ->
 urlencode(Bin, Opts) ->
 	Plus = not proplists:get_value(noplus, Opts, false),
 	Upper = proplists:get_value(upper, Opts, false),
-	urlencode(reverse_bin(hackney_bstr:to_binary(Bin)), <<>>, Plus, Upper).
+	urlencode(hackney_bstr:to_binary(Bin), <<>>, Plus, Upper).
 
 -spec urlencode(binary(), binary(), boolean(), boolean()) -> binary().
 urlencode(<<C, Rest/binary>>, Acc, P=Plus, U=Upper) ->
     Acc2 = mediatype_encode_reversed(Acc),
-    if	C >= $0, C =< $9 -> urlencode(Rest, <<Acc2/binary, C>>, P, U);
-        C >= $A, C =< $Z -> urlencode(Rest, <<Acc2/binary, C>>, P, U);
-        C >= $a, C =< $z -> urlencode(Rest, <<Acc2/binary, C>>, P, U);
+    if	C >= $0, C =< $9 -> urlencode(Rest, <<C, Acc2/binary>>, P, U);
+        C >= $A, C =< $Z -> urlencode(Rest, <<C, Acc2/binary>>, P, U);
+        C >= $a, C =< $z -> urlencode(Rest, <<C, Acc2/binary>>, P, U);
         C =:= $.; C =:= $-; C =:= $~; C =:= $_; C =:= $*; C =:= $@ ->
-            urlencode(Rest, <<Acc2/binary, C>>, P, U);
+            urlencode(Rest, <<C, Acc2/binary>>, P, U);
         C =:= $(; C =:= $); C =:= $!, C =:= $$ ->
-            urlencode(Rest, <<Acc2/binary, C>>, P, U);
+            urlencode(Rest, <<C, Acc2/binary>>, P, U);
         C =:= $ , Plus ->
-            urlencode(Rest, <<Acc2/binary, $+>>, P, U);
+            urlencode(Rest, <<$+, Acc2/binary>>, P, U);
         true ->
             H = C band 16#F0 bsr 4, L = C band 16#0F,
             H1 = if Upper -> tohexu(H); true -> tohexl(H) end,
             L1 = if Upper -> tohexu(L); true -> tohexl(L) end,
-            urlencode(Rest, <<Acc2/binary, L1, H1, $%>>, P, U)
+            urlencode(Rest, <<L1, H1, $%, Acc2/binary>>, P, U)
     end;
 urlencode(<<>>, Acc, _Plus, _Upper) ->
     Acc2 = mediatype_encode_reversed(Acc),
