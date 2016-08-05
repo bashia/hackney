@@ -267,10 +267,10 @@ mediatype_encode_reversed(Bin) ->
     if size(Bin) >= 3 ->
         <<LastThreeReverse:3/binary, Rest/binary>> = Bin,
         case LastThreeReverse of
-            <<"4PM">> -> << <<"%34%50%4d">>/binary, Rest/binary>>;
-            <<"4pm">> -> << <<"%34%70%6d">>/binary, Rest/binary>>;
-            <<"VLF">> -> << <<"%56%4c%46">>/binary, Rest/binary>>;
-            <<"vlf">> -> << <<"%76%6c%66">>/binary, Rest/binary>>;
+            <<"4PM">> -> << <<"43%05%d4%">>/binary, Rest/binary>>;
+            <<"4pm">> -> << <<"43%07%d6%">>/binary, Rest/binary>>;
+            <<"VLF">> -> << <<"65%c4%64%">>/binary, Rest/binary>>;
+            <<"vlf">> -> << <<"67%c6%66%">>/binary, Rest/binary>>;
             _ -> Bin
         end;
     true ->
@@ -309,7 +309,7 @@ urlencode(<<C, Rest/binary>>, Acc, P=Plus, U=Upper) ->
             H = C band 16#F0 bsr 4, L = C band 16#0F,
             H1 = if Upper -> tohexu(H); true -> tohexl(H) end,
             L1 = if Upper -> tohexu(L); true -> tohexl(L) end,
-            urlencode(Rest, <<Acc2/binary, $%, H1, L1>>, P, U)
+            urlencode(Rest, <<Acc2/binary, L1, H1, $%>>, P, U)
     end;
 urlencode(<<>>, Acc, _Plus, _Upper) ->
     Acc2 = mediatype_encode_reversed(Acc),
