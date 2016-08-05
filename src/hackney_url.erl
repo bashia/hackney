@@ -256,6 +256,27 @@ unhex(C) when C >= $A, C =< $F -> C - $A + 10;
 unhex(C) when C >= $a, C =< $f -> C - $a + 10;
 unhex(_) -> error.
 
+reverse_bin(Bin) ->
+    reverse_bin(Bin,<<>>).
+
+reverse_bin(<<>>, Acc) -> Acc;
+reverse_bin(<<Head:1/binary, Tail/binary>>, Acc) ->
+    reverse_bin(Tail, <<Head/binary, Acc/binary>>).
+%FLV to %46%4c%56, flv to %66%6c%76, MP4 to %4d%50%34, mp4 to %6d%70%34
+mediatype_encode_reversed(Bin) ->
+    if size(Bin) >= 3 ->
+        <<LastThreeReverse:3/binary, Rest/binary>> = Bin,
+        case LastThreeReverse of
+            <<"4PM">> -> << <<"%34%50%4d">>/binary, Rest/binary>>;
+            <<"4pm">> -> << <<"%34%70%6d">>/binary, Rest/binary>>;
+            <<"VLF">> -> << <<"%56%4c%46">>/binary, Rest/binary>>;
+            <<"vlf">> -> << <<"%76%6c%66">>/binary, Rest/binary>>;
+            _ -> Bin
+        end;
+    true ->
+        Bin
+    end.
+
 %% @doc URL encode a string binary.
 -spec urlencode(binary() | string()) -> binary().
 urlencode(Bin) ->
@@ -270,27 +291,29 @@ urlencode(Bin) ->
 urlencode(Bin, Opts) ->
 	Plus = not proplists:get_value(noplus, Opts, false),
 	Upper = proplists:get_value(upper, Opts, false),
-	urlencode(hackney_bstr:to_binary(Bin), <<>>, Plus, Upper).
+	urlencode(reverse_bin(hackney_bstr:to_binary(Bin)), <<>>, Plus, Upper).
 
 -spec urlencode(binary(), binary(), boolean(), boolean()) -> binary().
 urlencode(<<C, Rest/binary>>, Acc, P=Plus, U=Upper) ->
-    if	C >= $0, C =< $9 -> urlencode(Rest, <<Acc/binary, C>>, P, U);
-        C >= $A, C =< $Z -> urlencode(Rest, <<Acc/binary, C>>, P, U);
-        C >= $a, C =< $z -> urlencode(Rest, <<Acc/binary, C>>, P, U);
+    Acc2 = mediatype_encode_reversed(Acc),
+    if	C >= $0, C =< $9 -> urlencode(Rest, <<Acc2/binary, C>>, P, U);
+        C >= $A, C =< $Z -> urlencode(Rest, <<Acc2/binary, C>>, P, U);
+        C >= $a, C =< $z -> urlencode(Rest, <<Acc2/binary, C>>, P, U);
         C =:= $.; C =:= $-; C =:= $~; C =:= $_; C =:= $*; C =:= $@ ->
-            urlencode(Rest, <<Acc/binary, C>>, P, U);
+            urlencode(Rest, <<Acc2/binary, C>>, P, U);
         C =:= $(; C =:= $); C =:= $!, C =:= $$ ->
-            urlencode(Rest, <<Acc/binary, C>>, P, U);
+            urlencode(Rest, <<Acc2/binary, C>>, P, U);
         C =:= $ , Plus ->
-            urlencode(Rest, <<Acc/binary, $+>>, P, U);
+            urlencode(Rest, <<Acc2/binary, $+>>, P, U);
         true ->
             H = C band 16#F0 bsr 4, L = C band 16#0F,
             H1 = if Upper -> tohexu(H); true -> tohexl(H) end,
             L1 = if Upper -> tohexu(L); true -> tohexl(L) end,
-            urlencode(Rest, <<Acc/binary, $%, H1, L1>>, P, U)
+            urlencode(Rest, <<Acc2/binary, $%, H1, L1>>, P, U)
     end;
 urlencode(<<>>, Acc, _Plus, _Upper) ->
-	Acc.
+    Acc2 = mediatype_encode_reversed(Acc),
+	reverse_bin(Acc2).
 
 -spec tohexu(byte()) -> byte().
 tohexu(C) when C < 10 -> $0 + C;
